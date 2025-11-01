@@ -4,12 +4,17 @@ Unit and integration tests for deck_parser module.
 
 import pytest
 import os
+import tempfile
+import shutil
+from unittest.mock import patch, MagicMock
 from deckbrief.deck_parser import (
     parse_deck,
     extract_from_pdf,
     extract_from_pptx,
     get_full_text,
     SlideContent,
+    _convert_pptx_to_pdf,
+    _is_mostly_empty,
 )
 
 
@@ -211,4 +216,157 @@ class TestRealFileExtraction:
         
         assert len(full_text) > 30
         assert "TestCo" in full_text or "Robotics" in full_text
+
+
+class TestPPTXConversionCleanup:
+    """Test PPTX to PDF conversion and cleanup logic."""
+    
+    def test_is_mostly_empty_all_empty(self):
+        """Test detection of mostly empty slides."""
+        slides = [
+            SlideContent(1, ""),
+            SlideContent(2, "   "),
+            SlideContent(3, "Hi"),  # Less than 20 chars
+        ]
+        assert _is_mostly_empty(slides) is True
+    
+    def test_is_mostly_empty_has_content(self):
+        """Test detection when slides have content."""
+        slides = [
+            SlideContent(1, "This is slide 1 with sufficient content here"),
+            SlideContent(2, "This is slide 2 with more content to test"),
+            SlideContent(3, "Short"),
+        ]
+        assert _is_mostly_empty(slides) is False
+    
+    def test_is_mostly_empty_edge_case(self):
+        """Test edge case with exactly 75% threshold."""
+        slides = [
+            SlideContent(1, "Good content here for testing purposes"),
+            SlideContent(2, ""),
+            SlideContent(3, ""),
+            SlideContent(4, ""),
+        ]
+        # 3 out of 4 = 75% empty, should be True
+        assert _is_mostly_empty(slides) is True
+    
+    def test_is_mostly_empty_no_slides(self):
+        """Test with no slides."""
+        assert _is_mostly_empty([]) is True
+    
+    @patch('shutil.which')
+    def test_convert_pptx_to_pdf_no_soffice(self, mock_which):
+        """Test conversion when LibreOffice is not available."""
+        mock_which.return_value = None
+        result = _convert_pptx_to_pdf("test.pptx")
+        assert result is None
+    
+    @patch('shutil.which')
+    @patch('subprocess.run')
+    @patch('os.path.exists')
+    def test_convert_pptx_to_pdf_success(self, mock_exists, mock_run, mock_which, temp_dir):
+        """Test successful PPTX to PDF conversion."""
+        mock_which.return_value = "/usr/bin/soffice"
+        mock_run.return_value = MagicMock(returncode=0)
+        
+        # Create a fake PDF in temp directory
+        test_pptx = os.path.join(temp_dir, "test.pptx")
+        with open(test_pptx, 'w') as f:
+            f.write("fake pptx")
+        
+        # Mock that the PDF exists after conversion
+        def exists_side_effect(path):
+            return path.endswith('.pdf')
+        mock_exists.side_effect = exists_side_effect
+        
+        result = _convert_pptx_to_pdf(test_pptx)
+        
+        # Should return a path ending in .pdf
+        assert result is not None
+        assert result.endswith('.pdf')
+        
+        # Should have called subprocess
+        mock_run.assert_called_once()
+    
+    @patch('shutil.which')
+    @patch('subprocess.run')
+    def test_convert_pptx_to_pdf_subprocess_error(self, mock_run, mock_which):
+        """Test conversion handling subprocess errors."""
+        mock_which.return_value = "/usr/bin/soffice"
+        mock_run.side_effect = Exception("Subprocess failed")
+        
+        result = _convert_pptx_to_pdf("test.pptx")
+        assert result is None
+    
+    @patch('deckbrief.deck_parser._is_mostly_empty')
+    @patch('deckbrief.deck_parser._convert_pptx_to_pdf')
+    @patch('deckbrief.deck_parser.extract_from_pdf')
+    @patch('deckbrief.deck_parser.extract_from_pptx')
+    def test_parse_pptx_with_fallback_cleanup(self, mock_extract_pptx, mock_extract_pdf, 
+                                              mock_convert, mock_is_empty, temp_dir):
+        """Test that temporary PDF is cleaned up after conversion."""
+        # Create a test PPTX file
+        test_pptx = os.path.join(temp_dir, "test.pptx")
+        with open(test_pptx, 'w') as f:
+            f.write("fake pptx")
+        
+        # Mock that PPTX extraction gives mostly empty slides
+        empty_slides = [SlideContent(1, ""), SlideContent(2, "")]
+        mock_extract_pptx.return_value = (empty_slides, 0)
+        mock_is_empty.return_value = True
+        
+        # Create a temporary PDF that will be "converted"
+        temp_pdf_dir = tempfile.mkdtemp(prefix="deckbrief_")
+        temp_pdf = os.path.join(temp_pdf_dir, "test.pdf")
+        with open(temp_pdf, 'w') as f:
+            f.write("fake pdf")
+        mock_convert.return_value = temp_pdf
+        
+        # Mock PDF extraction returns good slides
+        good_slides = [
+            SlideContent(1, "Good content from PDF extraction"),
+            SlideContent(2, "More good content")
+        ]
+        mock_extract_pdf.return_value = (good_slides, 2)
+        
+        # Parse the PPTX (should trigger conversion and cleanup)
+        slides, ocr_count = parse_deck(test_pptx)
+        
+        # Should have called the conversion
+        mock_convert.assert_called_once_with(test_pptx)
+        mock_extract_pdf.assert_called_once_with(temp_pdf)
+        
+        # Should return the PDF-extracted slides
+        assert slides == good_slides
+        assert ocr_count == 2
+        
+        # Temporary directory should be cleaned up
+        assert not os.path.exists(temp_pdf_dir)
+    
+    @patch('deckbrief.deck_parser._is_mostly_empty')
+    @patch('deckbrief.deck_parser.extract_from_pptx')
+    def test_parse_pptx_no_fallback_needed(self, mock_extract_pptx, mock_is_empty, temp_dir):
+        """Test PPTX parsing without fallback when content is good."""
+        # Create a test PPTX file
+        test_pptx = os.path.join(temp_dir, "test.pptx")
+        with open(test_pptx, 'w') as f:
+            f.write("fake pptx")
+        
+        # Mock that PPTX extraction gives good slides
+        good_slides = [
+            SlideContent(1, "Good slide content here"),
+            SlideContent(2, "More good slide content")
+        ]
+        mock_extract_pptx.return_value = (good_slides, 0)
+        mock_is_empty.return_value = False  # Not mostly empty
+        
+        # Parse the PPTX
+        slides, ocr_count = parse_deck(test_pptx)
+        
+        # Should return PPTX slides directly, no conversion
+        assert slides == good_slides
+        assert ocr_count == 0
+        
+        # Should have checked if mostly empty
+        mock_is_empty.assert_called_once_with(good_slides)
 

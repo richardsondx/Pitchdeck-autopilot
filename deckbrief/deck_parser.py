@@ -11,6 +11,7 @@ import io
 import os
 import subprocess
 import shutil
+import tempfile
 
 
 class SlideContent:
@@ -34,23 +35,38 @@ def _is_mostly_empty(slides: List[SlideContent], min_chars: int = 20, threshold:
 
 
 def _convert_pptx_to_pdf(pptx_path: str) -> str | None:
-    """Convert PPTX to PDF using LibreOffice if available."""
+    """Convert PPTX to PDF using LibreOffice if available.
+    
+    Creates a temporary PDF file that should be cleaned up by the caller.
+    
+    Returns:
+        Path to temporary PDF file, or None if conversion failed
+    """
     soffice = shutil.which("soffice")
     if not soffice:
         return None
     
-    out_dir = os.path.dirname(pptx_path)
+    # Use a temporary directory for conversion
+    temp_dir = tempfile.mkdtemp(prefix="deckbrief_")
+    
     try:
         subprocess.run(
             [soffice, "--headless", "--convert-to", "pdf:writer_pdf_Export", 
-             pptx_path, "--outdir", out_dir],
+             pptx_path, "--outdir", temp_dir],
             check=True,
             capture_output=True,
             timeout=30
         )
-        pdf_path = os.path.splitext(pptx_path)[0] + ".pdf"
+        # Get the expected PDF filename
+        base_name = os.path.splitext(os.path.basename(pptx_path))[0]
+        pdf_path = os.path.join(temp_dir, base_name + ".pdf")
         return pdf_path if os.path.exists(pdf_path) else None
     except Exception:
+        # Clean up temp directory if conversion failed
+        try:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        except:
+            pass
         return None
 
 
@@ -176,10 +192,19 @@ def parse_deck(file_path: str) -> Tuple[List[SlideContent], int]:
         
         # Smart fallback: if PPTX is mostly empty, convert to PDF and re-parse with OCR
         if _is_mostly_empty(slides):
-            pdf_path = _convert_pptx_to_pdf(file_path)
-            if pdf_path and os.path.exists(pdf_path):
-                # Re-extract from PDF with OCR support
-                return extract_from_pdf(pdf_path)
+            temp_pdf_path = _convert_pptx_to_pdf(file_path)
+            if temp_pdf_path and os.path.exists(temp_pdf_path):
+                try:
+                    # Re-extract from PDF with OCR support
+                    result = extract_from_pdf(temp_pdf_path)
+                    return result
+                finally:
+                    # Clean up temporary PDF and its directory
+                    try:
+                        temp_dir = os.path.dirname(temp_pdf_path)
+                        shutil.rmtree(temp_dir, ignore_errors=True)
+                    except:
+                        pass
         
         return slides, ocr_count
     else:

@@ -86,6 +86,13 @@ def build_markdown(analysis: AnalysisResult, slide_count: int, ocr_count: int = 
             sections.append("")
             sections.append(f"**Overall Fit:** {overall_emoji} (Weighted Avg {avg_score:.1f}/5)")
         
+        # Add visual snapshot
+        sections.append("")
+        sections.append("### 📈 Visual Snapshot")
+        sections.append("")
+        visual_snapshot = create_visual_snapshot(analysis.investment_scores)
+        sections.append(visual_snapshot)
+        
         sections.append("")
         sections.append("---")
         sections.append("")
@@ -201,6 +208,41 @@ def get_overall_emoji(avg: float) -> str:
         return "🟨 Moderate"
     else:
         return "🟥 Weak"
+
+
+def create_visual_snapshot(investment_scores: Dict) -> str:
+    """
+    Generate visual bar chart snapshot with block characters.
+    
+    Args:
+        investment_scores: Dictionary of investment scores
+    
+    Returns:
+        Formatted visual snapshot string with bar charts
+    """
+    score_map = {
+        "founder_market_fit": "Founder-Market Fit",
+        "problem_severity": "Problem Severity",
+        "solution_quality": "Solution Quality",
+        "traction_momentum": "Traction Momentum",
+        "market_size": "Market Size",
+        "moat_potential": "Moat Potential",
+        "risk_level": "Risk Level"
+    }
+    
+    lines = []
+    for key, label in score_map.items():
+        if key in investment_scores:
+            score = investment_scores[key].get("score", 0)
+            # Create bar with filled (▓) and empty (░) blocks
+            filled = "▓" * score
+            empty = "░" * (5 - score)
+            bar = filled + empty
+            # Pad label to align bars
+            padded_label = label.ljust(18)
+            lines.append(f"{padded_label} {bar} ({score})")
+    
+    return "\n".join(lines)
 
 
 def sanitize_filename(company_name: str) -> str:

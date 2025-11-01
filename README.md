@@ -273,6 +273,10 @@ Potential features for future versions:
 - 🏷️ **Source Labels**: Tag each fact as `[Deck]`, `[Web]`, or `[AI Inference]` to improve transparency
 - 📊 **Market Signals**: Auto-fetch comparable companies and recent funding news to enrich "Market" and "Moat" sections
 - 🎯 **Confidence Scoring**: Display per-section confidence (e.g., Deck 100%, Web 85%, AI 70%) for quick trust assessment
+- 🔒 **File Size Limits**: Add maximum file size check before processing to prevent resource exhaustion
+- ⚡ **OCR Optimization**: Add per-page timeout and attempt limits for OCR processing to improve performance
+- 🚦 **API Rate Limiting**: Implement rate limiting for API calls to prevent quota exhaustion and control costs
+- 🧹 **Enhanced Cleanup**: Improve temporary file cleanup with automatic removal of stale files (pptx -> pdf temp files)
 
 ---
 
@@ -347,6 +351,10 @@ Potential improvements:
 - Tag facts with source labels (`[Deck]`, `[Web]`, `[AI Inference]`)
 - Auto-fetch comparable companies and recent funding news
 - Display per-section confidence scores for transparency
+- Add maximum file size check before processing (e.g., 50MB limit)
+- Implement OCR resource management (timeouts per page, attempt limits)
+- Add rate limiting for API calls to control costs and prevent quota exhaustion
+- Improve temporary file cleanup with automatic stale file removal
 
 ---
 
@@ -378,5 +386,5 @@ The result is a CLI that *looks and feels professional* — not like a throwaway
 
 ---
 
-**Made with ❤️ for investors who value their time.**
+**Made with ❤️ by Richardson Dackam for investors who value their time.**
 

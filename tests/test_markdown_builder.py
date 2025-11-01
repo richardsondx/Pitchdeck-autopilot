@@ -12,6 +12,9 @@ from deckbrief.markdown_builder import (
     sanitize_filename,
     save_markdown,
     save_debug_info,
+    create_visual_snapshot,
+    get_score_emoji,
+    get_overall_emoji,
 )
 from deckbrief.ai_analyzer import AnalysisResult
 
@@ -346,5 +349,175 @@ class TestEndToEndMarkdownGeneration:
         # Calculate confidence
         confidence = calculate_confidence(analysis)
         assert confidence > 0
+
+
+class TestVisualSnapshot:
+    """Test visual snapshot generation for investment scores."""
+    
+    def test_create_visual_snapshot_all_scores(self):
+        """Test visual snapshot with all investment scores."""
+        investment_scores = {
+            "founder_market_fit": {"score": 4, "reasoning": "Strong founder"},
+            "problem_severity": {"score": 5, "reasoning": "Critical problem"},
+            "solution_quality": {"score": 5, "reasoning": "Innovative"},
+            "traction_momentum": {"score": 2, "reasoning": "Early stage"},
+            "market_size": {"score": 5, "reasoning": "Large market"},
+            "moat_potential": {"score": 4, "reasoning": "Strong IP"},
+            "risk_level": {"score": 2, "reasoning": "High risk"}
+        }
+        
+        snapshot = create_visual_snapshot(investment_scores)
+        
+        # Check structure
+        assert "Founder-Market Fit" in snapshot
+        assert "Problem Severity" in snapshot
+        assert "Solution Quality" in snapshot
+        assert "Traction Momentum" in snapshot
+        assert "Market Size" in snapshot
+        assert "Moat Potential" in snapshot
+        assert "Risk Level" in snapshot
+        
+        # Check bars
+        assert "▓▓▓▓░ (4)" in snapshot  # Founder-Market Fit
+        assert "▓▓▓▓▓ (5)" in snapshot  # Problem Severity and others
+        assert "▓▓░░░ (2)" in snapshot  # Traction Momentum
+    
+    def test_create_visual_snapshot_partial_scores(self):
+        """Test visual snapshot with only some scores."""
+        investment_scores = {
+            "problem_severity": {"score": 5, "reasoning": "Critical"},
+            "solution_quality": {"score": 3, "reasoning": "Good"}
+        }
+        
+        snapshot = create_visual_snapshot(investment_scores)
+        
+        assert "Problem Severity" in snapshot
+        assert "Solution Quality" in snapshot
+        assert "▓▓▓▓▓ (5)" in snapshot
+        assert "▓▓▓░░ (3)" in snapshot
+        # Should not include missing scores
+        assert "Founder-Market Fit" not in snapshot
+    
+    def test_create_visual_snapshot_edge_scores(self):
+        """Test visual snapshot with edge case scores."""
+        investment_scores = {
+            "problem_severity": {"score": 0, "reasoning": "None"},
+            "solution_quality": {"score": 1, "reasoning": "Minimal"},
+            "market_size": {"score": 5, "reasoning": "Maximum"}
+        }
+        
+        snapshot = create_visual_snapshot(investment_scores)
+        
+        assert "░░░░░ (0)" in snapshot  # All empty
+        assert "▓░░░░ (1)" in snapshot  # One filled
+        assert "▓▓▓▓▓ (5)" in snapshot  # All filled
+    
+    def test_create_visual_snapshot_empty_scores(self):
+        """Test visual snapshot with no scores."""
+        investment_scores = {}
+        snapshot = create_visual_snapshot(investment_scores)
+        assert snapshot == ""
+
+
+class TestScoreEmojis:
+    """Test score emoji helper functions."""
+    
+    def test_get_score_emoji_high(self):
+        """Test emoji for high scores."""
+        assert get_score_emoji(5) == "🟩"
+        assert get_score_emoji(4) == "🟩"
+    
+    def test_get_score_emoji_medium(self):
+        """Test emoji for medium scores."""
+        assert get_score_emoji(3) == "🟨"
+        assert get_score_emoji(2) == "🟨"
+    
+    def test_get_score_emoji_low(self):
+        """Test emoji for low scores."""
+        assert get_score_emoji(1) == "🟥"
+        assert get_score_emoji(0) == "🟥"
+    
+    def test_get_overall_emoji_strong(self):
+        """Test overall emoji for strong scores."""
+        assert "Strong" in get_overall_emoji(4.5)
+        assert "Strong" in get_overall_emoji(4.0)
+        assert "🟩" in get_overall_emoji(4.5)
+    
+    def test_get_overall_emoji_moderate(self):
+        """Test overall emoji for moderate scores."""
+        assert "Moderate" in get_overall_emoji(3.5)
+        assert "Moderate" in get_overall_emoji(3.0)
+        assert "🟨" in get_overall_emoji(3.5)
+    
+    def test_get_overall_emoji_weak(self):
+        """Test overall emoji for weak scores."""
+        assert "Weak" in get_overall_emoji(2.5)
+        assert "Weak" in get_overall_emoji(1.0)
+        assert "🟥" in get_overall_emoji(2.5)
+
+
+class TestInvestmentScoresIntegration:
+    """Test investment scores integration in markdown output."""
+    
+    def test_build_markdown_with_investment_scores(self):
+        """Test markdown generation with investment scores."""
+        data = {
+            "Company": "TestCo",
+            "Tagline": "AI Platform",
+            "Problem": "Test problem",
+            "Solution": "Test solution",
+            "Traction": "Early traction",
+            "Team": "Strong team",
+            "Market": "Large market",
+            "Moat": "Strong moat",
+            "Risks": "Manageable risks",
+            "Sources": ["Slide 1"],
+            "InvestmentScores": {
+                "founder_market_fit": {"score": 4, "reasoning": "Strong"},
+                "problem_severity": {"score": 5, "reasoning": "Critical"},
+                "solution_quality": {"score": 5, "reasoning": "Innovative"},
+                "traction_momentum": {"score": 2, "reasoning": "Early"},
+                "market_size": {"score": 5, "reasoning": "Large"},
+                "moat_potential": {"score": 4, "reasoning": "Strong IP"},
+                "risk_level": {"score": 2, "reasoning": "High"}
+            }
+        }
+        
+        analysis = AnalysisResult(data)
+        markdown = build_markdown(analysis, slide_count=10, ocr_count=0)
+        
+        # Check investment snapshot table exists
+        assert "🧮 Apple-to-Apple Investment Snapshot" in markdown
+        assert "| Pillar | Score | Comment |" in markdown
+        assert "Founder-Market Fit" in markdown
+        assert "🟩 4/5" in markdown
+        assert "Strong" in markdown
+        
+        # Check visual snapshot exists
+        assert "📈 Visual Snapshot" in markdown
+        assert "▓▓▓▓░ (4)" in markdown  # Founder-Market Fit
+        assert "▓▓▓▓▓ (5)" in markdown  # Problem Severity
+        assert "▓▓░░░ (2)" in markdown  # Traction
+        
+        # Check overall fit calculation
+        assert "Overall Fit:" in markdown
+        assert "Weighted Avg" in markdown
+    
+    def test_build_markdown_without_investment_scores(self):
+        """Test markdown generation without investment scores."""
+        data = {
+            "Company": "TestCo",
+            "Problem": "Test problem",
+            "Solution": "Test solution",
+            "Sources": ["Slide 1"]
+        }
+        
+        analysis = AnalysisResult(data)
+        markdown = build_markdown(analysis, slide_count=10, ocr_count=0)
+        
+        # Should not include investment sections
+        assert "Apple-to-Apple Investment Snapshot" not in markdown
+        assert "Visual Snapshot" not in markdown
+        assert "Founder-Market Fit" not in markdown
 
 
