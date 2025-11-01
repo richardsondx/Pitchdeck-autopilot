@@ -1,0 +1,61 @@
+{
+  "success_response": {
+    "id": "gen-test123",
+    "model": "anthropic/claude-3.5-sonnet",
+    "choices": [
+      {
+        "message": {
+          "role": "assistant",
+          "content": "{\"Company\": \"TestCo Robotics\", \"Tagline\": \"AI-native robotics platform\", \"Problem\": \"Industrial robots are expensive and data-hungry\", \"Solution\": \"Synthetic data training for robots\", \"Traction\": \"2 pilot customers, $250K ARR\", \"Team\": \"Ex-DeepMind engineers with PhDs\", \"Market\": \"$8.3B market growing 19% CAGR\", \"Moat\": \"Proprietary simulation dataset\", \"Risks\": \"Hardware costs and compute dependency\", \"Sources\": [\"Slide 3\", \"Slide 12\", \"Slide 28\"]}"
+        },
+        "finish_reason": "stop"
+      }
+    ]
+  },
+  "malformed_json_response": {
+    "id": "gen-test456",
+    "model": "anthropic/claude-3.5-sonnet",
+    "choices": [
+      {
+        "message": {
+          "role": "assistant",
+          "content": "This is not JSON, just plain text analysis"
+        },
+        "finish_reason": "stop"
+      }
+    ]
+  },
+  "markdown_wrapped_response": {
+    "id": "gen-test789",
+    "model": "anthropic/claude-3.5-sonnet",
+    "choices": [
+      {
+        "message": {
+          "role": "assistant",
+          "content": "```json\n{\"Company\": \"TestCo\", \"Tagline\": \"Test tagline\", \"Problem\": \"Test problem\", \"Solution\": \"Test solution\", \"Traction\": \"Test traction\", \"Team\": \"Test team\", \"Market\": \"Test market\", \"Moat\": \"Test moat\", \"Risks\": \"Test risks\", \"Sources\": []}\n```"
+        },
+        "finish_reason": "stop"
+      }
+    ]
+  },
+  "error_401": {
+    "error": {
+      "code": 401,
+      "message": "Invalid API key"
+    }
+  },
+  "error_429": {
+    "error": {
+      "code": 429,
+      "message": "Rate limit exceeded"
+    }
+  },
+  "error_500": {
+    "error": {
+      "code": 500,
+      "message": "Internal server error"
+    }
+  }
+}
+
+

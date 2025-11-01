@@ -1,0 +1,31 @@
+# Development and Testing Dependencies
+
+# Testing Framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.1
+pytest-timeout>=2.1.0
+pytest-check>=2.2.2
+
+# HTTP Mocking
+responses>=0.23.0
+
+# Mutation Testing
+mutmut>=2.4.4
+
+# Time Mocking
+freezegun>=1.2.2
+
+# Test Fixtures
+reportlab>=4.0.4
+
+# Code Quality
+mypy>=1.5.0
+pylint>=2.17.5
+ruff>=0.0.285
+bandit>=1.7.5
+safety>=2.3.5
+
+# Production Dependencies (for reference)
+-r requirements.txt
+
