@@ -409,8 +409,6 @@ This tool was built with three principles:
 2. **Polish**: Terminal UX should feel like a product, not a script
 3. **Reliability**: Graceful error handling, clear feedback, no silent failures
 
-The result is a CLI that *looks and feels professional* — not like a throwaway coding test.
-
 ---
 
 **Made with ❤️ by Richardson Dackam for investors who value their time.**
